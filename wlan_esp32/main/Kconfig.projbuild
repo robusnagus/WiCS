@@ -1,0 +1,15 @@
+menu "WiCS settings"
+
+    config STA_WIFI_SSID
+        string "WiFi SSID"
+        default "myssid"
+        help
+            Initial SSID (network name).
+
+    config STA_WIFI_PASS
+        string "WiFi Password"
+        default "mypassword"
+        help
+            Initial WiFi password (WPA or WPA2).
+
+endmenu
