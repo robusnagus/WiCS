@@ -1,14 +1,18 @@
 //
-// Project: Wireless Command Station
-// File:    wics_config.h
-// Author:  Nagus
-// Version: 20200229
+// Wireless Command Station
+//
+// Copyright 2020 Robert Nagowski
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
 
 #ifndef WICS_CONFIG_H
 #define WICS_CONFIG_H
 
-#define SW_VERSION_TITLE        "20200303.7"
+#define SW_VERSION_TITLE        "20200309.3"
 
 #define GPIO_LED_WIFI           2
 #define GPIO_LED_DCCR           22

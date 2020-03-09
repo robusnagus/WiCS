@@ -1,8 +1,12 @@
 //
-// Project: Wireless Command Station
-// File:    wics_qloco.c
-// Author:  Nagus
-// Version: 20200217
+// Wireless Command Station
+//
+// Copyright 2020 Robert Nagowski
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
 
 #include <string.h>
@@ -66,8 +70,6 @@ locoQueue_td* QLOCO_FindNext()
     if (locoQueue == NULL)
         return NULL;
 
-    //ESP_LOGI(TAG, "Find next, curr %d, max %d",
-    //              locoCurrent, appConfig.locoMaxQueue);
     uint8_t iloco = locoCurrent;
     do {
         locoCurrent++;
@@ -77,11 +79,9 @@ locoQueue_td* QLOCO_FindNext()
 
     if (locoQueue[locoCurrent].timeout == 0) {
         // nie ma aktywnych lokomotyw
-        //ESP_LOGI(TAG, "Find next, NULL");
         return NULL;
     }
 
-    //ESP_LOGI(TAG, "Find next, zwrot %d", locoCurrent);
     return &(locoQueue[locoCurrent]);
 
 } // QLOCO_FindNext
@@ -101,6 +101,7 @@ uint8_t QLOCO_GetInfo(uint8_t *datagram, uint8_t *response)
     response[0] = datagram[1]; // Lok adres
     response[1] = datagram[2];
 
+    //ESP_LOGI(TAG, "Loco info: %X, addr %X", iloco, *((uint16_t*)(&datagram[1])));
     if (iloco == appConfig.locoMaxQueue) {
         // nie znaleziono - pusty rekord
         response[2] = 0x02;
@@ -113,7 +114,8 @@ uint8_t QLOCO_GetInfo(uint8_t *datagram, uint8_t *response)
     else {
         response[2] = locoQueue[iloco].flags;
         response[3] = locoQueue[iloco].speed;
-        response[4] = (uint8_t)(locoQueue[iloco].funct & 0x1F);
+        response[4] = (uint8_t)(((locoQueue[iloco].funct >> 1) & 0x0F) |
+                                ((locoQueue[iloco].funct << 4) & 0x10));
         response[5] = (uint8_t)((locoQueue[iloco].funct >> 5) & 0xFF);
         response[6] = (uint8_t)((locoQueue[iloco].funct >> 13) & 0xFF);
         response[7] = (uint8_t)((locoQueue[iloco].funct >> 21) & 0xFF);
@@ -145,8 +147,10 @@ uint8_t QLOCO_UpdateOper(uint8_t *datagram, uint8_t *response)
             // pełna kolejka
             return 0;
         }
+        locoQueue[iloco].address = *((uint16_t*)&(datagram[1]));
     }
 
+    //ESP_LOGI(TAG, "Update oper %X, adr %X", datagram[0], *((uint16_t*)&(datagram[1])));
     // aktualizacja danych
     uint8_t fOper = 0;
     if ((datagram[0] & 0xF0) == 0x10) {
@@ -199,7 +203,8 @@ uint8_t QLOCO_UpdateOper(uint8_t *datagram, uint8_t *response)
     response[1] = datagram[2];
     response[2] = locoQueue[iloco].flags;
     response[3] = locoQueue[iloco].speed;
-    response[4] = (uint8_t)(locoQueue[iloco].funct & 0x1F);
+    response[4] = (uint8_t)(((locoQueue[iloco].funct >> 1) & 0x0F) |
+                            ((locoQueue[iloco].funct << 4) & 0x10));
     response[5] = (uint8_t)((locoQueue[iloco].funct >> 5) & 0xFF);
     response[6] = (uint8_t)((locoQueue[iloco].funct >> 13) & 0xFF);
     response[7] = (uint8_t)((locoQueue[iloco].funct >> 21) & 0xFF);

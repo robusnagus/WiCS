@@ -1,8 +1,12 @@
 //
-// Project: Wireless Command Station
-// File:    wics_dccgen.c
-// Author:  Nagus
-// Version: 20200303
+// Wireless Command Station
+//
+// Copyright 2020 Robert Nagowski
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
 
 #include <string.h>
@@ -174,6 +178,8 @@ esp_err_t DCCGEN_MainT_PutPacket(dccPacket_td *pkt)
 
     if (pkt != NULL) {
         memcpy((void *)&mainT, pkt, sizeof(dccPacket_td));
+        ESP_LOGI(TAG, "Pkt: %X %X %X %X %X", pkt->data[0], pkt->data[1],
+                 pkt->data[2], pkt->data[3], pkt->data[4]);
     }
     else {
         // brak pakietu > idle

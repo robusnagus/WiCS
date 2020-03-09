@@ -1,8 +1,12 @@
 //
-// Project: Wireless Command Station
-// File:    wics_station.c
-// Author:  Nagus
-// Version: 20200303
+// Wireless Command Station
+//
+// Copyright 2020 Robert Nagowski
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
 //
 
 #include <string.h>
@@ -140,7 +144,7 @@ void STATION_CreateOperPacket(locoQueue_td *pLoco, uint8_t pkttype)
     uint8_t xsum;
     uint8_t cnt = 0;
 
-    ESP_LOGI(TAG, "CreateOperPacket");
+    //ESP_LOGI(TAG, "CreateOper %X %.4X", pkttype, pLoco->address);
     thePacket.repeat   = 1;
     thePacket.preamble = appConfig.dccPreamble;
     //adres
@@ -161,7 +165,8 @@ void STATION_CreateOperPacket(locoQueue_td *pLoco, uint8_t pkttype)
     switch (pkttype) {
     case QLOCO_SEND_FUN1:
         // grupa funkcji 1
-        thePacket.data[cnt] = (uint8_t)(0x80 | (pLoco->funct & 0x1F));
+        thePacket.data[cnt] = (uint8_t)(0x80 | ((pLoco->funct >> 1) & 0x0F)
+                                             | ((pLoco->funct << 4) & 0x10));
         break;
     case QLOCO_SEND_FUN2:
         // grupa funkcji 2
@@ -266,15 +271,9 @@ static void STATION_TimerHandler(void *arg)
             stationStatus.supplyVoltage = (uint16_t)(esp_adc_cal_raw_to_voltage(
                                         sensMtrVolt / DCCG_ADC_SAMPLES, appADCchars)
                                         * DCCG_ADC_VSENSDIV);
-            ESP_LOGI(TAG, "CURR: %d VOLT: %d",
-                            ((sensMtrCurr / DCCG_ADC_SAMPLES) * DCCG_ADC_ISENSDIV),
-                            ((sensMtrVolt / DCCG_ADC_SAMPLES) * DCCG_ADC_VSENSDIV));
-            ESP_LOGI(TAG, "calCURR: %d callVOLT: %d",
-                            stationStatus.mainCurrent, stationStatus.supplyVoltage);
             sensMtrCurr = 0;
             sensMtrVolt = 0;
             sensCount = 0;
-
         }
     }
 
@@ -338,43 +337,38 @@ static void STATION_EventHandler(void* arg)
 // wątek obsługi generatora DCC
 void STATION_DCCgenerator(void *arg)
 {
-    //ESP_LOGI(TAG, "DCCgenerator enter");
     while (true) {
-        //xEventGroupWaitBits(appEventGroup,
-        //                    DCCG_RUNNING_BIT, false, true, portMAX_DELAY);
         int evt;
         xQueueReceive(stationQueue, &evt, portMAX_DELAY);
 
         if (stationStatus.centralState & CS_EMERGENCY_STOP) {
-            //ESP_LOGI(TAG, "DCCgenerator ESTOP");
             STATION_MainT_EStop();
+            continue;
         }
-        else if (dccQueue[qDccHead].bytes == 0) {
+
+        if (dccQueue[qDccHead].bytes == 0) {
             // kolejka pusta - wygenerowanie odświeżania
             STATION_CreateOperRefresh(QLOCO_FindNext());
-            if (dccQueue[qDccHead].bytes == 0) {
-                // kolejka nadal pusta
-                //ESP_LOGI(TAG, "Packet: empty");
-                DCCGEN_MainT_PutPacket(NULL);
-            }
-            else {
-                // wysłanie pakietu
-                //ESP_LOGI(TAG, "Packet: %X", *((uint32_t*)&(dccQueue[qDccHead])));
-                if (ESP_OK ==
-                        DCCGEN_MainT_PutPacket(&(dccQueue[qDccHead]))) {
-                    // pakiet przyjęty - zdjęcie z kolejki
-                    dccQueue[qDccHead].bytes = 0;
-                    qDccHead++;
-                    if (qDccHead == appConfig.dccMaxQueue) {
-                        qDccHead = 0;
-                    }
+        }
+        if (dccQueue[qDccHead].bytes == 0) {
+            // kolejka nadal pusta
+            DCCGEN_MainT_PutPacket(NULL);
+        }
+        else {
+            // wysłanie pakietu
+            if (ESP_OK ==
+                    DCCGEN_MainT_PutPacket(&(dccQueue[qDccHead]))) {
+                // pakiet przyjęty - zdjęcie z kolejki
+                dccQueue[qDccHead].bytes = 0;
+                qDccHead++;
+                if (qDccHead == appConfig.dccMaxQueue) {
+                    qDccHead = 0;
                 }
             }
         }
     } // pętla główna
 
     vTaskDelete(NULL);
-    //ESP_LOGI(TAG, "DCCgenerator closed");
 
 } // STATION_DCCgenerator
 
