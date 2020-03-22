@@ -7,12 +7,15 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
+// See gpl-3.0.md file for details.
 //
 
 #ifndef WICS_CONFIG_H
 #define WICS_CONFIG_H
 
-#define SW_VERSION_TITLE        "20200309.3"
+#define SW_VERSION_TITLE        "20200322.3"
+#define HW_VERSION_MAJOR        1
+#define HW_VERSION_MINOR        0
 
 #define GPIO_LED_WIFI           2
 #define GPIO_LED_DCCR           22
@@ -52,7 +55,9 @@
 #define WIFI_CONNECTED_BIT      BIT0
 #define DCCG_RUNNING_BIT        BIT4
 
+#define WIFI_MAX_POSTBUFSIZE    1024
 #define WIFI_MAX_STARETRY       5
+#define WIFI_PORT_WEBUI         80
 
 #define DCCG_TIMER_GRP          TIMER_GROUP_1
 #define DCCG_MT_TIMER           TIMER_0
