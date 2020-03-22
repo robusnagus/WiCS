@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+	<meta charset="utf-8">
+	<title>Wireless DCC Command Station</title>
+	<link href="esp32.css" rel="stylesheet">
+</head>
+<body> 
+
+<div class="topnav">
+<a href="#" class="active">Centralka</a>
+<a href="config.htm">Ustawienia</a>
+</div>
+
+<div class="content">
+<h1>Bezprzewodowa centralka DCC</h1>
+<p>Aktualny stan centralki DCC.</p>
+<br>
+
+<table>
+<tr><td>Tor główny - napięcie zasilania:</td><td><input type="text" id="m_voltage" value="---" readonly></td></tr>
+<tr><td>Tor główny - pobór prądu:</td><td><input type="text" id="m_current" value="---" readonly></td></tr>
+</table><br>
+</div>
+
+<div class="footer">
+<p>Nagus 2020</p>
+</div>
+
+<script>
+var refreshTick = setInterval(refreshStatus, 1000);
+
+function refreshStatus()
+{
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+   	if ((this.readyState == 4) && (this.status == 200)) {
+   		var parsed = JSON.parse(this.responseText);  
+   		document.getElementById("m_voltage").value = parsed.mvoltage;
+   		document.getElementById("m_current").value = parsed.mcurrent;
+    	}
+  	};
+  	xhttp.open("GET", "json/stat", true);
+  	xhttp.send();
+}
+</script>
+
+</body>
+</html>

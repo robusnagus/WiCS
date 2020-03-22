@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+	<meta charset="utf-8">
+	<title>Wireless DCC Command Station - aktualizacja</title>
+	<link href="esp32.css" rel="stylesheet">
+</head> 
+<body onload="refreshDevInfo()">
+
+<div class="topnav">
+<a href="index.htm">Centralka</a>
+<a href="config.htm">Ustawienia</a>
+<a href="#" class="active">Aktualizacja</a>
+</div>
+
+<div class="content">
+<h1>Aktualizacja oprogramowania</h1>
+<p>Bezprzewodowa centralka DCC</p><br>
+<table>
+<tr><td>Wersja sprzętu: </td><td><input type="text" id="hw_version" readonly></td></tr>
+<tr><td>Wersja oprogramowania: </td><td><input type="text" id="sw_version" readonly></td></tr>
+<tr><td>Numer seryjny: </td><td><input type="text" id="serialnum" readonly></td></tr>
+</table><br>
+
+<p>Wybierz plik z oprogramowaniem:<br></p>
+<input type="file" id="fw_file"><br>
+<button class="button" id="fw_upgrade" onClick="startUpdate()">Aktualizuj</button>
+<p id="p_upgrade">Aktualizacja</p>
+
+<div class="footer">
+<p>(c) Nagus 2020</p>
+</div>
+
+<script>
+function startUpdate() 
+{
+	var inpFwFile = document.getElementById("fw_file").files;
+	document.getElementById("fw_file").disabled = true;
+	document.getElementById("fw_upgrade").disabled = true;
+	document.getElementById("p_upgrade").innerHTML = "Aktualizacja oprogramowania w toku";
+	var fwFile = inpFwFile[0]; 		
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+		if (this.readyState == 4) {
+			if (this.status == 200) {	
+				alert(this.status + "OK");			
+			}
+			else {
+				alert(this.status + " Error!\n" + this.responseText);
+            location.reload();
+			}
+		} 
+	};
+	xhttp.open("POST", "upgrade", true);
+  	xhttp.send(fwFile);
+}
+
+function refreshDevInfo()
+{
+	var xhttp = new XMLHttpRequest();
+	xhttp.onreadystatechange = function() {
+		if ((this.readyState == 4) && (this.status == 200)) {
+			var parsed = JSON.parse(this.responseText);
+			document.getElementById("hw_version").value = parsed.hw_version;
+			document.getElementById("sw_version").value = parsed.sw_version;
+			document.getElementById("serialnum").value = parsed.serialnum;
+		}
+	};
+	xhttp.open("GET", "json/info", true);
+  	xhttp.send();
+}
+</script>
+
+</body>
+</html>
