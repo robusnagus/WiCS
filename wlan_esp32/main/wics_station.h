@@ -1,8 +1,13 @@
 //
-// Project: Wireless Command Station
-// File:    wics_station.h
-// Author:  Nagus
-// Version: 20200218
+// Wireless Command Station
+//
+// Copyright 2020 Robert Nagowski
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// See gpl-3.0.md file for details.
 //
 
 #ifndef WICS_STATION_H
@@ -16,7 +21,7 @@ typedef struct {
     int16_t  progCurrent;           // prąd toru programującego
     int16_t  filteredMainCurrent;
     int16_t  temperature;
-    uint16_t supplyVoltage;
+    uint16_t supplyVoltage;         // napięcie zasilania
     uint16_t vccVoltage;
     uint8_t  centralState;          // stan centralki z21
     uint8_t  centralStateEx;        // stan centralki z21
