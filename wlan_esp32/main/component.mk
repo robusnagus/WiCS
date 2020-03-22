@@ -1,5 +1,11 @@
 #
-# "main" pseudo-component makefile.
+# Wireless Command Station
+# Copyright 2020 Nagus
 #
-# (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
 
+COMPONENT_EMBED_FILES := \
+    ../resource/index.htm \
+    ../resource/config.htm \
+    ../resource/upgrade.htm \
+    ../resource/esp32.css \
+    ../resource/ngsc32.ico

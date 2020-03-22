@@ -1,8 +1,13 @@
 //
-// Project: Wireless Command Station
-// File:    wics_main.c
-// Author:  Nagus
-// Version: 20200223
+// Wireless Command Station
+//
+// Copyright 2020 Robert Nagowski
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// See gpl-3.0.md file for details.
 //
 
 #include <stdio.h>
@@ -18,6 +23,7 @@
 #include "esp_netif.h"
 #include "esp_event.h"
 #include "esp_log.h"
+#include "esp_http_server.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -35,10 +41,13 @@ stationConfig_td appConfig;
 esp_adc_cal_characteristics_t *appADCchars;
 
 // stan aplikacji / połączenia
-EventGroupHandle_t appEventGroup;
-int                appStaConnFail;
-esp_netif_t*       appNetIf;
+EventGroupHandle_t    appEventGroup;
+int                   appStaConnFail;
+esp_netif_t*          appNetIf;
+static httpd_handle_t webHandle;
 
+extern httpd_handle_t WEB_ServerStart();
+extern void WEB_ServerStop(httpd_handle_t webhandle);
 void WiFi_StopSTA();
 void WIFI_StartAP();
 
@@ -70,6 +79,9 @@ static void WIFI_EventHandlerSTA(void* arg, esp_event_base_t event_base,
         appStaConnFail = 0;
         xEventGroupSetBits(appEventGroup, WIFI_CONNECTED_BIT);
         GPIO_LED_Wifi_On();
+        if (webHandle == 0) {
+            webHandle = WEB_ServerStart();
+        }
     }
 
 } // WIFI_EventHandlerSTA
@@ -82,9 +94,16 @@ static void WIFI_EventHandlerAP(void* arg, esp_event_base_t event_base,
         esp_netif_set_hostname(appNetIf, Z21NET_HOSTNAME);
         xEventGroupSetBits(appEventGroup, WIFI_CONNECTED_BIT);
         GPIO_LED_Wifi_On();
+        if (webHandle == 0) {
+            webHandle = WEB_ServerStart();
+        }
     }
     else if (event_id == WIFI_EVENT_AP_STOP) {
         xEventGroupClearBits(appEventGroup, WIFI_CONNECTED_BIT);
+        if (webHandle != 0) {
+            WEB_ServerStop(webHandle);
+            webHandle = 0;
+        }
         GPIO_LED_Wifi_Off();
     }
     else if (event_id == WIFI_EVENT_AP_STACONNECTED) {
@@ -115,6 +134,7 @@ void WIFI_StartAP()
                     WIFI_EVENT, ESP_EVENT_ANY_ID, &WIFI_EventHandlerAP, NULL));
 
     wifi_config_t wifiConfig;
+    bzero(&wifiConfig, sizeof(wifi_config_t));
     strncpy((char*)(wifiConfig.ap.ssid), appConfig.apSSID, MAX_WLAN_NAME);
     wifiConfig.ap.ssid_len = strlen(appConfig.apSSID);
     strncpy((char*)(wifiConfig.ap.password), appConfig.apPass, MAX_WLAN_PASS);
@@ -172,6 +192,7 @@ void WIFI_StartSTA()
                     IP_EVENT, IP_EVENT_STA_GOT_IP, &WIFI_EventHandlerSTA, NULL));
 
     wifi_config_t wifiConfig;
+    bzero(&wifiConfig, sizeof(wifi_config_t));
     strncpy((char*)(wifiConfig.sta.ssid), appConfig.staSSID, MAX_WLAN_NAME);
     strncpy((char*)(wifiConfig.sta.password), appConfig.staPass, MAX_WLAN_PASS);
 
@@ -244,6 +265,7 @@ void app_main(void)
 
     appNetIf = NULL;
     appStaConnFail = 0;
+    webHandle = 0;
     CONFIG_Initialize();
     CONFIG_LoadSettings();
 
