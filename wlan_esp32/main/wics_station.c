@@ -145,7 +145,7 @@ void STATION_CreateOperPacket(locoQueue_td *pLoco, uint8_t pkttype)
     uint8_t xsum;
     uint8_t cnt = 0;
 
-    //ESP_LOGI(TAG, "CreateOper %X %.4X", pkttype, pLoco->address);
+    ESP_LOGI(TAG, "CreateOper %X %.4X", pkttype, pLoco->address);
     thePacket.repeat   = 1;
     thePacket.preamble = appConfig.dccPreamble;
     //adres
@@ -338,9 +338,11 @@ static void STATION_EventHandler(void* arg)
 // wątek obsługi generatora DCC
 void STATION_DCCgenerator(void *arg)
 {
+    ESP_LOGI(TAG, "DCCGEN task on core: %d", xPortGetCoreID());
+
     while (true) {
-        int evt;
-        xQueueReceive(stationQueue, &evt, portMAX_DELAY);
+        xEventGroupWaitBits(appEventGroup,
+                            DCCG_PACKET_REQUEST, true, true, portMAX_DELAY);
 
         if (stationStatus.centralState & CS_EMERGENCY_STOP) {
             STATION_MainT_EStop();
@@ -456,7 +458,7 @@ void STATION_Initialize()
                              (void*)&gpioDccErr);
 
         STATION_MainT_Reset();
-        xTaskCreate(STATION_DCCgenerator, "station_task", 2048, NULL, 5, NULL);
+        xTaskCreate(STATION_DCCgenerator, "station_task", 2048, NULL, 6, NULL);
         QLOCO_Initialize();
         DCCGEN_Initialize();
         STATION_TrackVoltage_On();

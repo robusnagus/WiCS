@@ -14,6 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "freertos/event_groups.h"
 
 #include "esp_system.h"
 #include "esp_log.h"
@@ -26,6 +27,7 @@
 #include "wics_dccgen.h"
 
 extern xQueueHandle stationQueue;
+extern EventGroupHandle_t appEventGroup;
 
 static const char *TAG = "WiCS.DCCg";
 
@@ -35,9 +37,11 @@ DRAM_ATTR const uint64_t dccgPulseZero = (uint64_t)(DCCG_PULSE_ZERO);
 // tor główny
 static uint64_t mtPulse;
 static uint8_t  mtBufOut;		// bufor wyjściowy
-static uint8_t  mtBitCnt;		// bufor-licznik bitów
-static uint8_t  mtByteCnt;		// bufor-licznik bajtów, 0=preambuła
-static dccPacket_td mainT;      // dane pakietu
+static uint8_t  mtBitCnt;		// licznik bitów
+static uint8_t  mtByteCnt;		// licznik bajtów, 0=preambuła
+static uint8_t  mtLastByte;
+static uint8_t  mtEmpty;
+static dccPacket_td mainT;      // dane pakietu DCC
 
 static portMUX_TYPE mtSpinlock = portMUX_INITIALIZER_UNLOCKED;
 static gpio_dev_t *dccgen = GPIO_HAL_GET_HW(GPIO_PORT_0);
@@ -58,80 +62,87 @@ static inline void IRAM_ATTR GPIO_isr_LevelClr(gpio_num_t gpio_num)
         dccgen->out1_w1tc.data = (1 << (gpio_num - 32));
 }
 
-// przerwanie generatora sygnału DCC - tor główny
+// generator sygnału DCC - tor główny, przerwanie
 static void IRAM_ATTR DCCGEN_isrHandler(void *param)
 {
     portENTER_CRITICAL_SAFE(&mtSpinlock); // timer_spinlock_take
-    int trackId = 0;
     volatile uint64_t timCount =
             timer_group_get_counter_value_in_isr(DCCG_TIMER_GRP, DCCG_MT_TIMER);
     timer_group_clr_intr_status_in_isr(DCCG_TIMER_GRP, DCCG_MT_TIMER);
 
-    // zmiana stanu sygnału na: tor główny
+    // tor główny
+    mtBitCnt--;
     if (mtBitCnt & 0x01) {
         // środek bitu
         GPIO_isr_LevelClr(GPIO_DCC_SIG1);
-        mtBitCnt--;
     }
     else {
-        // koniec bitu
+        // początek bitu
         GPIO_isr_LevelSet(GPIO_DCC_SIG1);
         if (mtBitCnt) {
             // następny bit
-           	mtBitCnt--;
            	if (mtByteCnt != 0) {
-           		// następny bit danych
+           		// bit danych
             	if (mtBufOut & 0x80)
             		mtPulse = dccgPulseOne;
                 else
             		mtPulse = dccgPulseZero;
                 mtBufOut = mtBufOut << 1;
             }
-            // preambuła: następny bit zawsze 1
+            else {
+                // preambuła: zawsze 1
+                mtPulse = dccgPulseOne;
+            }
         }
         else {
-           	// bity wysłane - następny krok
-           	if (mtByteCnt) {
-           		// pakiet danych
-           		if (mtByteCnt == mainT.bytes) {
+           	// wszystkie bity wysłane - następny krok
+           	if (mtByteCnt == 0) {
+                // koniec preambuły - co dalej?
+            	if (mainT.bytes) {
+                    // pakiet gotowy do wysłania
+            		mtPulse = dccgPulseZero; // bit startu
+                    mtBitCnt = 18; // 8b danych + 1b startu
+                    mtByteCnt = 1;
+                    mtLastByte = mainT.bytes;
+                    mtBufOut = mainT.data[0];
+                }
+            	else {
+                    // nadal nic do wysłania, preambuła
+                    mtBitCnt = 8;
+                    mtEmpty = 1;
+                }
+            } // preambuła
+            else {
+                // dane
+           		if (mtByteCnt == mtLastByte) {
            			// nie ma więcej danych: koniec pakietu
            			mtPulse = dccgPulseOne;
                     mtByteCnt = 0;
             		mtBitCnt = mainT.preamble + 2; // bit stopu + preambuła
-            		if (--mainT.repeat) {
-                        mainT.bytes = 0; // zwolnienie bufora
-                        xQueueSendFromISR(stationQueue, &trackId, NULL);
-                    }
                 }
-            	else {
-                    // są jeszcze dane do wysłania
+                else {
+                    // są dane do wysłania
             		mtPulse = dccgPulseZero;
-                    mtBitCnt = 18;
+            		mtBitCnt = 18; // 8b danych + 1b startu
             		mtBufOut = mainT.data[mtByteCnt++];
+            		if (mtByteCnt == mtLastByte) {
+                        if (--mainT.repeat) {
+                            mainT.bytes = 0; // zwolnienie bufora
+                            mtEmpty = 1;
+                        }
+            		}
                 }
-            } // pakiet danych
-            // preambuła
-            else {
-            	// koniec preambuły - co dalej?
-            	if (mainT.bytes) {
-                    // jest pakiet do wysłania
-            		mtPulse = dccgPulseZero; // bit startu
-                    mtBitCnt = 18; // 8b danych + 1b startu
-                    mtByteCnt = 1;
-                    mtBufOut = mainT.data[0];
-                }
-            	else {
-                    // nic do wysłania, nadal preambuła
-                    mtBitCnt = 4;
-                    xQueueSendFromISR(stationQueue, &trackId, NULL);
-                }
-            } // preambuła
+            } // dane
         }
     } // następny bit
 
     timCount += mtPulse;
     timer_group_set_alarm_value_in_isr(DCCG_TIMER_GRP, DCCG_MT_TIMER, timCount);
     timer_group_enable_alarm_in_isr(DCCG_TIMER_GRP, DCCG_MT_TIMER);
+    if (mtEmpty != 0) {
+        xEventGroupSetBitsFromISR(appEventGroup, DCCG_PACKET_REQUEST, NULL);
+        mtEmpty = 0;
+    }
     portEXIT_CRITICAL_SAFE(&mtSpinlock); // timer_spinlock_give
 
 } // DCCGEN_isrHandler
@@ -144,6 +155,8 @@ void DCCGEN_MainT_Start(uint8_t preamble)
     mainT.preamble = preamble;
 	mtBitCnt   = preamble;
 	mtByteCnt  = 0;
+	mtLastByte = 0;
+	mtEmpty = 0;
 	GPIO_DCC_Enable();
 	GPIO_DCC_Sig1_Hi();
 
@@ -222,7 +235,7 @@ static void DCCGEN_TimerInit()
 // zwrot: brak
 void DCCGEN_Initialize()
 {
-    ESP_LOGI(TAG, "DCCGEN starting: %dB", esp_get_free_heap_size());
+    ESP_LOGI(TAG, "DCCGEN init: %dB", esp_get_free_heap_size());
 
     mainT.bytes = 0;
     DCCGEN_TimerInit();
