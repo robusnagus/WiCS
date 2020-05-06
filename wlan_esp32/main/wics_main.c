@@ -24,6 +24,7 @@
 #include "esp_event.h"
 #include "esp_log.h"
 #include "esp_http_server.h"
+#include "esp_ota_ops.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -210,21 +211,32 @@ void APP_GPIO_Init()
 {
     gpio_config_t ioConf;
     ioConf.intr_type = GPIO_INTR_DISABLE;
-    // wyjścia
-    ioConf.mode = GPIO_MODE_OUTPUT;
-    ioConf.pin_bit_mask = ((1ULL << GPIO_LED_WIFI) | (1ULL << GPIO_LED_DCCR) |
-                           (1ULL << GPIO_LED_PROG) |
-                           (1ULL << GPIO_DCC_SIG1) | (1ULL << GPIO_DCC_BRK) |
-                           (1ULL << GPIO_DCC_ENA));
+
+    // wyjścia: sterownik DCC
+    ioConf.mode = GPIO_MODE_OUTPUT_OD;
+    ioConf.pin_bit_mask = (1ULL << GPIO_DCC_ENA);
     ioConf.pull_down_en = 0;
     ioConf.pull_up_en = 0;
     gpio_config(&ioConf);
+    GPIO_DCC_Disable();
 
+    ioConf.mode = GPIO_MODE_OUTPUT_OD;
+    ioConf.pin_bit_mask = (1ULL << GPIO_DCC_SIG1);
+    ioConf.pull_down_en = 0;
+    ioConf.pull_up_en = 0;
+    gpio_config(&ioConf);
+    GPIO_DCC_Sig1_Hi();
+
+    // wyjścia: LEDy
+    ioConf.mode = GPIO_MODE_OUTPUT;
+    ioConf.pin_bit_mask = ((1ULL << GPIO_LED_WIFI) | (1ULL << GPIO_LED_DCCR) |
+                           (1ULL << GPIO_LED_PROG));
+    ioConf.pull_down_en = 0;
+    ioConf.pull_up_en = 0;
+    gpio_config(&ioConf);
     GPIO_LED_Wifi_Off();
     GPIO_LED_DccS_Off();
     GPIO_LED_Prog_Off();
-    GPIO_DCC_Sig1_Lo();
-    GPIO_DCC_Disable();
 
     // wejścia
     ioConf.intr_type = GPIO_PIN_INTR_NEGEDGE;
@@ -258,7 +270,8 @@ extern void Z21NET_Start();
 // główna funkcja
 void app_main(void)
 {
-    printf("Wireless Command Station %s\n", SW_VERSION_TITLE);
+    const esp_app_desc_t* adesc = esp_ota_get_app_description();
+    printf("Wireless Command Station %s\n", adesc->version);
     printf("SDK version:%s\n", esp_get_idf_version());
     APP_GPIO_Init();
     APP_ADC_Init();
