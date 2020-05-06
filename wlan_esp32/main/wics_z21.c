@@ -125,13 +125,16 @@ void XBUS_DatagramProcess(uint8_t *datagram, uint32_t *fbroadcast)
         xsum ^= datagram[cnt];
     if (xsum != 0) {
         // suma kontrolna nie zgadza się - nieprawidłowy pakiet
+        ESP_LOGI(TAG, "Wrong checksum: %X", datagram[i_X21_HEADER]);
         return;
     }
+    ESP_LOGI(TAG, "X21 datagram: %X", datagram[i_X21_HEADER]);
 
     switch (datagram[i_X21_HEADER]) {
     // zmiana stanu lokomotywy
     case LAN_X_SET_LOCO_OPER:
     	z21Response[i_X21_HEADER] = LAN_X_LOCO_INFO;
+    	ESP_LOGI(TAG, "QLOCO UpdateOper: %X", datagram[i_X21_DATA0]);
         xlen = QLOCO_UpdateOper(&(datagram[i_X21_DATA0]),
                                 &(z21Response[i_X21_DATA0]));
         if (xlen != 0) {
@@ -292,6 +295,7 @@ void Z21NET_DatagramProcess(const in_addr_t ip, uint8_t *datagram)
     uint32_t z21RespBroadcast = Z21_BC_NONE;
     *((uint16_t*)(&z21Response[i_Z21_DATALEN])) = 0;
 
+    ESP_LOGI(TAG, "Z21 dgram: %X", *((uint16_t*)&(datagram[i_Z21_HEADER])));
     // kod protokołu Z21
     switch (*((uint16_t*)&(datagram[i_Z21_HEADER]))) {
     // pakiet X-Bus
@@ -353,6 +357,7 @@ static void Z21NET_NetworkTask(void *pvParameters)
 	struct sockaddr_in fromAddr;
 	socklen_t fromLen;
 
+	ESP_LOGI(TAG, "Z21 network task on core: %d", xPortGetCoreID());
 	// pętla łącza
 	while (true) {
         xEventGroupWaitBits(appEventGroup,
@@ -389,7 +394,7 @@ static void Z21NET_NetworkTask(void *pvParameters)
                 Z21NET_DatagramProcess(fromAddr.sin_addr.s_addr, incLanBuf);
             }
             else {
-                ESP_LOGE(TAG, "UDP receive error");
+                ESP_LOGI(TAG, "UDP receive error");
                 continue;
             }
 
