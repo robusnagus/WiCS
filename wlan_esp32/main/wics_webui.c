@@ -224,7 +224,8 @@ esp_err_t WEB_GetDataHandler(httpd_req_t *req)
         sprintf(tempStr, "%d.%d", HW_VERSION_MAJOR, HW_VERSION_MINOR);
         item = cJSON_CreateString(tempStr);
         cJSON_AddItemToObject(response, "hw_version", item);
-        item = cJSON_CreateString(SW_VERSION_TITLE);
+        const esp_app_desc_t* adesc = esp_ota_get_app_description();
+        item = cJSON_CreateString(adesc->version);
         cJSON_AddItemToObject(response, "sw_version", item);
         sprintf(tempStr, "%X08", Z21NET_GetSerialNum());
         item = cJSON_CreateString(tempStr);
