@@ -13,7 +13,6 @@
 #ifndef WICS_CONFIG_H
 #define WICS_CONFIG_H
 
-#define SW_VERSION_TITLE        "20200322.3"
 #define HW_VERSION_MAJOR        1
 #define HW_VERSION_MINOR        0
 
@@ -24,7 +23,7 @@
 #define GPIO_BTN_STOP           4
 
 #define GPIO_DCC_SIG1           5
-#define GPIO_DCC_BRK            25
+#define GPIO_DCC_SIG2           25
 #define GPIO_DCC_ENA            19
 #define GPIO_DCC_ISEN           33
 #define GPIO_DCC_VSEN           34
@@ -43,8 +42,8 @@
 #define GPIO_LED_Prog_Off()     gpio_set_level(GPIO_LED_PROG, 0)
 #define GPIO_DCC_Sig1_Hi()      gpio_set_level(GPIO_DCC_SIG1, 1)
 #define GPIO_DCC_Sig1_Lo()      gpio_set_level(GPIO_DCC_SIG1, 0)
-#define GPIO_DCC_Enable()       gpio_set_level(GPIO_DCC_ENA, 1)
-#define GPIO_DCC_Disable()      gpio_set_level(GPIO_DCC_ENA, 0)
+#define GPIO_DCC_Enable()       gpio_set_level(GPIO_DCC_ENA, 0)
+#define GPIO_DCC_Disable()      gpio_set_level(GPIO_DCC_ENA, 1)
 
 #define Z21NET_HOSTNAME         "NGS_WiCS"
 #define Z21NET_PORT_NUM         21105
@@ -54,6 +53,7 @@
 
 #define WIFI_CONNECTED_BIT      BIT0
 #define DCCG_RUNNING_BIT        BIT4
+#define DCCG_PACKET_REQUEST     BIT5
 
 #define WIFI_MAX_POSTBUFSIZE    1024
 #define WIFI_MAX_STARETRY       5
@@ -61,9 +61,9 @@
 
 #define DCCG_TIMER_GRP          TIMER_GROUP_1
 #define DCCG_MT_TIMER           TIMER_0
-#define DCCG_TIMER_DIV          8
-#define DCCG_PULSE_ONE          570
-#define DCCG_PULSE_ZERO         1140
+#define DCCG_TIMER_DIV          80
+#define DCCG_PULSE_ONE          57
+#define DCCG_PULSE_ZERO         114
 
 #define DCCG_ADC_SAMPLES        10
 #define DCCG_ADC_DEFVREF        1100
